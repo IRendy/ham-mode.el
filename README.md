@@ -1,1 +1,1 @@
-# ham.el
+# ham-mode.el
