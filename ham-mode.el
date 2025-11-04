@@ -1,4 +1,4 @@
-;;; ham.el --- a ham toolkit for Emacs users           -*- lexical-binding: t; -*-
+;;; ham-mode.el --- a ham toolkit for Emacs users           -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -181,5 +181,4 @@ Null prefix argument turns off the mode."
     (message "HAM mode disabled")))
 
 (provide 'ham-mode)
-(provide 'ham)
-;;; ham.el ends here.
+;;; ham-mode.el ends here.
