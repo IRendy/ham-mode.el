@@ -58,10 +58,10 @@ NOTES is a string for any additional notes."
                      :rst-recv rst-recv
                      :notes notes)))
     (push entry ham-log-entries)
-    (ham--save-log)
+    (ham-save-log)
     (message "Logged contact with %s" call-sign)))
 
-(defun ham--save-log ()
+(defun ham-save-log ()
   "Save the current log entries to `ham-log-file' in Org-mode format."
   (with-temp-buffer
     (insert "#+TITLE: Amateur Radio (HAM) Contact Log\n\n")
@@ -80,7 +80,7 @@ NOTES is a string for any additional notes."
 
 (defun ham-load-log ()
   "Load the log entries from `ham-log-file'."
-  (interactive)
+  (interactive) ; ;; 添加这一行，使其成为交互式命令
   (setq ham-log-entries (list))
   (when (file-exists-p ham-log-file)
     (with-temp-buffer
@@ -95,11 +95,11 @@ NOTES is a string for any additional notes."
                            :rst-recv (match-string 6)
                            :notes (match-string 7))))
           (push entry ham-log-entries))))
-  (message "Loaded %d log entries." (length ham-log-entries)))
+  (message "Loaded %d log entries." (length ham-log-entries))))
 
 (defun ham-view-log ()
   "Display the HAM radio contact log in a new buffer."
-  (interactive)
+  (interactive) ; ;; 添加这一行，使其成为交互式命令
   (ham-load-log)
   (let ((buffer (get-buffer-create "*HAM Log*")))
     (switch-to-buffer buffer)
@@ -122,38 +122,6 @@ NOTES is a string for any additional notes."
                               (plist-get entry :notes))))
             (goto-char (point-min)))
         (insert "No log entries found.")))))
-
-(defun ham-search-log (search-term)
-  "Search the HAM radio log for entries matching SEARCH-TERM."
-  (interactive "sSearch log for: ")
-  (ham-load-log)
-  (let ((matching-entries
-         (seq-filter (lambda (entry)
-                       (cl-some (lambda (field)
-                                  (string-match-p search-term (format "%s" (plist-get entry field))))
-                                '(:call-sign :timestamp :frequency :mode :rst-sent :rst-recv :notes)))
-                     ham-log-entries)))
-    (if matching-entries
-        (progn
-          (message "Found %d matching entries." (length matching-entries))
-          (let ((buffer (get-buffer-create "*HAM Search Results*")))
-            (switch-to-buffer buffer)
-            (erase-buffer)
-            (org-mode)
-            (insert (format "#+TITLE: HAM Log Search Results for: %s\n\n" search-term))
-            (insert "| Call Sign | Date/Time (UTC) | Frequency (MHz) | Mode | RST Sent | RST Recv | Notes |\n")
-            (insert "|-----------+-----------------+-----------------+------+----------+----------+-------|\n")
-            (dolist (entry (reverse matching-entries))
-              (insert (format "| %s | %s | %.3f | %s | %s | %s | %s |\n"
-                              (plist-get entry :call-sign)
-                              (plist-get entry :timestamp)
-                              (plist-get entry :frequency)
-                              (plist-get entry :mode)
-                              (plist-get entry :rst-sent)
-                              (plist-get entry :rst-recv)
-                              (plist-get entry :notes))))
-            (goto-char (point-min))))
-      (message "No matching entries found."))))
 
 ;; Keymap and mode definition
 (defvar ham-mode-map
