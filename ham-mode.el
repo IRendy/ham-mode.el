@@ -46,11 +46,11 @@ NOTES is a string for any additional notes."
    (list
     (read-string "Call Sign: ")
     (read-number "Frequency (MHz): " 14.250)
-    (intern (completing-read "Mode: " '(SSB CW FM DIGITAL) nil t))
+    (intern (completing-read "Mode: " '(SSB CW FM DIGITAL WEB) nil t))
     (read-string "RST Sent: " "59")
     (read-string "RST Received: " "59")
     (read-string "Notes: ")))
-  (let ((entry (list :call-sign call-sign
+  (let ((entry (list :call-sign (upcase call-sign)
                      :timestamp (format-time-string "%Y-%m-%d %H:%M UTC" nil t)
                      :frequency frequency
                      :mode mode
@@ -80,7 +80,7 @@ NOTES is a string for any additional notes."
 
 (defun ham-load-log ()
   "Load the log entries from `ham-log-file'."
-  (interactive) ; ;; 添加这一行，使其成为交互式命令
+  (interactive)
   (setq ham-log-entries (list))
   (when (file-exists-p ham-log-file)
     (with-temp-buffer
@@ -99,7 +99,7 @@ NOTES is a string for any additional notes."
 
 (defun ham-view-log ()
   "Display the HAM radio contact log in a new buffer."
-  (interactive) ; ;; 添加这一行，使其成为交互式命令
+  (interactive)
   (ham-load-log)
   (let ((buffer (get-buffer-create "*HAM Log*")))
     (switch-to-buffer buffer)
@@ -147,6 +147,108 @@ Null prefix argument turns off the mode."
         (ham-load-log)
         (message "HAM mode enabled"))
     (message "HAM mode disabled")))
+
+(defconst light-speed 299792458 "Amateur const number (Unit: m/s).")
+
+(defconst ham-band-frequencies
+  '((1.8 . 2.0)    ; 160m
+    (3.5 . 4.0)    ; 80m
+    (7.0 . 7.3)    ; 40m
+    (10.1 . 10.15) ; 30m
+    (14.0 . 14.35) ; 20m
+    (18.068 . 18.168) ; 17m
+    (21.0 . 21.45) ; 15m
+    (24.89 . 24.99) ; 12m
+    (28.0 . 29.7)  ; 10m
+    (50.0 . 54.0)  ; 6m
+    (144.0 . 148.0) ; 2m
+    (430.0 . 440.0)) ; 70cm
+  "Amateur radio band frequencies in MHz (lower . upper).")
+
+(defun ham-calculate-wavelength (&optional frequency)
+  "Calculate wavelength in meters for given FREQUENCY in MHz.
+Warns if frequency is outside common amateur radio bands."
+  (interactive
+   (list (read-number "Frequency (MHz): " 14.250)))
+
+  (unless frequency
+    (error "Frequency must be provided"))
+
+  (when (<= frequency 0)
+    (error "Frequency must be positive"))
+
+  (let ((wavelength (/ light-speed (* frequency 1e6)))
+        (in-band-p nil)
+        (suggested-band nil))
+
+    ;; Check if frequency is in amateur bands
+    (dolist (band ham-band-frequencies)
+      (when (and (>= frequency (car band))
+                 (<= frequency (cdr band)))
+        (setq in-band-p t)
+        (setq suggested-band band)))
+
+    (if (called-interactively-p 'any)
+        (progn
+          (message "Wavelength for %.3f MHz is: %.3f meters%s"
+                   frequency wavelength
+                   (if in-band-p
+                       " (in amateur band)"
+                     (format " (not in amateur bands - try %.1f-%.1f MHz)"
+                             (car (car ham-band-frequencies))
+                             (cdr (car (last ham-band-frequencies)))))))
+      wavelength)))
+
+(defconst ham-band-wavelengths
+  '((160 . (1.8 . 2.0))    ; 160m band
+    (80  . (3.5 . 4.0))    ; 80m band
+    (40  . (7.0 . 7.3))    ; 40m band
+    (30  . (10.1 . 10.15)) ; 30m band
+    (20  . (14.0 . 14.35)) ; 20m band
+    (17  . (18.068 . 18.168)) ; 17m band
+    (15  . (21.0 . 21.45)) ; 15m band
+    (12  . (24.89 . 24.99)) ; 12m band
+    (10  . (28.0 . 29.7))  ; 10m band
+    (6   . (50.0 . 54.0))  ; 6m band
+    (2   . (144.0 . 148.0)) ; 2m band
+    (0.7 . (430.0 . 440.0))) ; 70cm band
+  "Amateur radio bands with wavelength in meters and frequency range in MHz.")
+
+(defun ham-calculate-frequency (&optional wavelength)
+  "Calculate frequency in MHz for given WAVELENGTH in meters.
+Also identifies the corresponding amateur radio band."
+  (interactive
+   (list (read-number "Wavelength (meters): " 21.037)))
+
+  (unless wavelength
+    (error "Wavelength must be provided"))
+
+  (when (<= wavelength 0)
+    (error "Wavelength must be positive"))
+
+  (let ((frequency (/ light-speed (* wavelength 1e6)))
+        (band-name nil)
+        (band-freq nil))
+
+    ;; Find the corresponding amateur band
+    (dolist (band ham-band-wavelengths)
+      (let ((band-wavelength (car band))
+            (freq-range (cdr band)))
+        (when (and (>= frequency (car freq-range))
+                   (<= frequency (cdr freq-range)))
+          (setq band-name (format "%sm" band-wavelength))
+          (setq band-freq freq-range))))
+
+    (if (called-interactively-p 'any)
+        (progn
+          (message "Frequency for %.3f meters is: %.3f MHz%s"
+                   wavelength frequency
+                   (if band-name
+                       (format " (%s band: %.1f-%.1f MHz)"
+                               band-name (car band-freq) (cdr band-freq))
+                     " (not in amateur bands)")))
+      frequency)))
+
 
 (provide 'ham-mode)
 ;;; ham-mode.el ends here.
